@@ -16,6 +16,12 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         return self.create_user(email, password, **extra_fields)
+    
+class University(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+
+    def __str__(self):
+        return self.name
 
 class User(AbstractBaseUser, PermissionsMixin):
     ROLE_CHOICES = [
@@ -40,7 +46,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     highschool = models.CharField(max_length=255, blank=True, null=True)
     kensap_year = models.IntegerField(blank=True, null=True)
     gpa = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True)
-    university = models.CharField(max_length=255, blank=True, null=True)
+    university = models.ForeignKey(University, on_delete=models.SET_NULL, null=True, blank=True)
+    custom_university = models.CharField(max_length=255, blank=True, null=True)  # For user-added universities
     major = models.CharField(max_length=255, blank=True, null=True)
     minor = models.CharField(max_length=255, blank=True, null=True)
     graduation_year = models.IntegerField(blank=True, null=True)

@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .permissions import IsCareersTeam
-from .models import User
+from .models import University, User
 from .serializers import UserSerializer, RegisterUserSerializer, ProfileUpdateSerializer
 from django.http import JsonResponse
 from django.views import View
@@ -54,49 +54,24 @@ class ProfileUpdateView(RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_object(self):
-        return self.request.user  # ✅ Restrict access to logged-in user
+        """Ensures users can only update their own profile."""
+        return self.request.user  
 
     def update(self, request, *args, **kwargs):
-        response = super().update(request, *args, **kwargs)  # Update profile
-        self.get_object().update_role()  # Trigger role update after profile update
-        return response
-        
-        # Validation based on role
-        # if user.role == "KenSAP":
-        #     forbidden_fields = ["gpa", "university", "company"]
-        #     required_fields = ["highschool", "kensap_year"]
-        # elif user.role == "Undergrad":
-        #     forbidden_fields = ["company"]
-        #     required_fields = ["gpa", "university"]
-        # elif user.role == "Alumni":
-        #     forbidden_fields = ["gpa", "university"]
-        #     required_fields = ["company"]
-        # elif user.role == "CareerMember":
-        #     forbidden_fields = []  # CareerMembers can update all fields if needed
-        #     required_fields = []
-        # else:
-        #     forbidden_fields = []
-        #     required_fields = []
+        user = self.get_object()
+        data = request.data.copy()  
 
-        # # Check forbidden fields
-        # for field in forbidden_fields:
-        #     if field in data:
-        #         return Response({"error": f"{user.role} students cannot update {field}."}, status=status.HTTP_400_BAD_REQUEST)
+        university_name = data.pop("university", "").strip()
 
-        # # Check required fields
-        # for field in required_fields:
-        #     if field not in data or not data[field]:
-        #         return Response({"error": f"{field} is required for {user.role}."}, status=status.HTTP_400_BAD_REQUEST)
+        if university_name:
+            # Check if the university exists; if not, create it
+            university, created = University.objects.get_or_create(name__iexact=university_name)
+            data["university"] = university.id  # Assign the university ID
 
-        # return super().update(request, *args, **kwargs)
+        serializer = self.get_serializer(user, data=data, partial=True)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            user.update_role()  # Ensure role transition is checked
+            return Response(serializer.data)
 
-# class ManualRoleUpdateView(UpdateAPIView):
-#     queryset = User.objects.all()
-#     serializer_class = RoleUpdateSerializer
-#     permission_classes = [IsAuthenticated]
-
-#     def perform_update(self, serializer):
-#         user = self.get_object()
-#         serializer.save()
-#         user.transition_to(serializer.validated_data["role"])  # Manually trigger transition
-
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
