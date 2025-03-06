@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.timezone import now
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+import calendar
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -46,10 +47,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     highschool = models.CharField(max_length=255, blank=True, null=True)
     kensap_year = models.IntegerField(blank=True, null=True)
     gpa = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True)
-    university = models.ForeignKey(University, on_delete=models.SET_NULL, null=True, blank=True)
-    custom_university = models.CharField(max_length=255, blank=True, null=True)  # For user-added universities
+    university = models.CharField(max_length=255, blank=True, null=True)
     major = models.CharField(max_length=255, blank=True, null=True)
     minor = models.CharField(max_length=255, blank=True, null=True)
+    graduation_month = models.IntegerField(blank=True, null=True)  # Store month (1-12)
     graduation_year = models.IntegerField(blank=True, null=True)
     company = models.CharField(max_length=255, blank=True, null=True)
     city = models.CharField(max_length=255, blank=True, null=True)
@@ -64,12 +65,21 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.user_id
 
     def update_role(self):
+        """Ensure role updates based on graduation status."""
+        current_year = now().year
+        current_month = now().month
+
         if self.role == "KenSAP" and self.university:
             self.transition_to("Undergrad")
-        elif self.role == "Undergrad" and self.graduation_year and self.graduation_year <= now().year:
-            self.transition_to("Alumni")
+        elif self.role == "Undergrad":
+            if self.graduation_year and self.graduation_month:
+                # Check if graduation date has passed
+                if (self.graduation_year < current_year) or \
+                   (self.graduation_year == current_year and self.graduation_month <= current_month):
+                    self.transition_to("Alumni")
 
     def transition_to(self, new_role):
+        """Helper method to transition roles."""
         if self.role != new_role:  # Avoid unnecessary transitions
             RoleTransition.objects.create(user=self, old_role=self.role, new_role=new_role)
             self.role = new_role

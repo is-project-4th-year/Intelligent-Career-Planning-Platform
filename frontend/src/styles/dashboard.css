@@ -1,0 +1,232 @@
+/* Global Styles */
+body {
+    font-family: Arial, sans-serif;
+    background: white;
+    color: black;
+    margin: 0;
+    padding: 0;
+    font-size: 14px; /* Reduce base font size */
+}
+
+/* Dashboard Container */
+.dashboard-container {
+    display: flex;
+    height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 250px;
+    background: white;
+    padding: 15px;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar h2 {
+    font-size: 18px; /* Reduced */
+    font-weight: bold;
+}
+
+.sidebar ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.sidebar li {
+    padding: 8px 0;
+    font-size: 14px; /* Reduced */
+    cursor: pointer;
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    padding: 15px;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.header h1 {
+    font-size: 20px; /* Reduced */
+    font-weight: bold;
+}
+
+.search-bar {
+    padding: 6px;
+    width: 100%; /* Make it fill the container */
+    max-width: 700px; /* Set a reasonable max width */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.new-entry-button {
+    padding: 6px 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px; /* Reduced */
+}
+
+/* Stats Section */
+.stats-section {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.card {
+    flex: 1;
+    background: white;
+    padding: 15px;
+    text-align: center;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    font-size: 12px; /* Reduced */
+}
+
+/* Table Section */
+.table-section {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px; /* Reduced */
+}
+
+th, td {
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background: #f0f0f0;
+    font-weight: bold;
+}
+
+tr:nth-child(even) {
+    background: #f9f9f9;
+}
+
+/* USER PROFILE SECTION */
+.user-profile {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.profile-pic {
+    width: 35px;
+    height: 35px;
+    background-color: #002855; /* Dark Blue */
+    color: white;
+    font-weight: bold;
+    font-size: 12px; /* Reduced */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    text-transform: uppercase;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-name {
+    font-weight: bold;
+    font-size: 12px; /* Reduced */
+}
+
+.user-role {
+    font-size: 10px; /* Reduced */
+    color: gray;
+}
+/* Logout Button */
+.logout-button {
+    padding: 6px 12px;
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: 0.3s;
+}
+
+.logout-button:hover {
+    background-color: #cc0000;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Modal Content */
+.modal-content {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    max-width: 300px;
+}
+
+/* Modal Buttons */
+.modal-buttons {
+    margin-top: 15px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.confirm-btn {
+    background: #ff4d4d;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    color: white;
+    cursor: pointer;
+}
+
+.cancel-btn {
+    background: #ccc;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    color: black;
+    cursor: pointer;
+}
+
+.confirm-btn:hover {
+    background: #cc0000;
+}
+
+.cancel-btn:hover {
+    background: #999;
+}

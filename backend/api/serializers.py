@@ -19,57 +19,54 @@ class RegisterUserSerializer(serializers.ModelSerializer):
         return User.objects.create(**validated_data)
 
 class ProfileUpdateSerializer(serializers.ModelSerializer):
-    university = serializers.PrimaryKeyRelatedField(
-        queryset=University.objects.all(), required=False, allow_null=True
-    )
-    custom_university = serializers.CharField(required=False, allow_blank=True)
+    graduation_month = serializers.IntegerField(required=False, min_value=1, max_value=12)
+    graduation_year = serializers.IntegerField(required=False)
+    university = serializers.CharField(required=False, allow_blank=True)  # Ensure university is a text field
 
     class Meta:
         model = User
         fields = [
-            "highschool", "kensap_year", "gpa", "university", "custom_university",
-            "major", "minor", "graduation_year", "company", "city"
+            "highschool", "kensap_year", "gpa", "university", "major", "minor",
+            "graduation_month", "graduation_year", "company", "city"
         ]
-    
+ 
     def validate(self, data):
-        user = self.instance  # The logged-in user
+        """Ensure role-based validation rules."""
+        user = self.instance
 
         if user.role == "KenSAP":
-            forbidden_fields = ['gpa', 'company']  # KenSAP students can't update these
-            for field in forbidden_fields:
-                if field in data and data[field]:
-                    raise serializers.ValidationError(f"KenSAP students cannot update {field}.")
-            
-            # Ensure KenSAP students provide highschool and Kensap year
-            if not data.get('highschool') or not data.get('kensap_year'):
+            # forbidden_fields = ["gpa", "company"]
+            # for field in forbidden_fields:
+            #     if field in data and data[field]:
+            #         raise serializers.ValidationError(f"KenSAP students cannot update {field}.")
+            if not data.get("highschool") or not data.get("kensap_year"):
                 raise serializers.ValidationError("KenSAP students must provide a highschool and Kensap year.")
 
         if user.role == "Undergrad":
-            if 'gpa' not in data or not data['gpa']:
-                raise serializers.ValidationError("Undergraduates must have a GPA.")
-            if 'university' not in data or not data['university']:
-                raise serializers.ValidationError("Undergraduates must provide a university.")
+            # if "gpa" not in data or not data["gpa"]:
+            #     raise serializers.ValidationError("Undergraduates must have a GPA.")
+            if "university" not in data or not data["university"]:  # Correctly check for a university name
+                raise serializers.ValidationError("Undergraduates must provide a university name.")
+            # if "graduation_year" not in data or not data["graduation_year"]:
+            #     raise serializers.ValidationError("Undergraduates must provide a graduation year.")
+            # if "graduation_month" not in data or not data["graduation_month"]:
+            #     raise serializers.ValidationError("Undergraduates must provide a graduation month.")
 
         if user.role == "Alumni":
-            if 'company' not in data or not data['company']:
+            if "company" not in data or not data["company"]:
                 raise serializers.ValidationError("Alumni must have a company field.")
 
         return data
 
     def update(self, instance, validated_data):
-        """
-        Allows users to search for universities dynamically.
-        If they enter a new university name, it's only added if no match is found.
-        """
-        custom_uni = validated_data.pop("custom_university", "").strip()
+    # Ensures university is updated as a simple text field and not overwritten as null.
+  
+     if "university" in validated_data:
+        university_value = validated_data["university"]
+        if university_value is not None:  # Ensure we don't accidentally set it to null
+            instance.university = university_value
 
-        if custom_uni:
-            # Check if the university already exists
-            university = University.objects.filter(name__iexact=custom_uni).first()
-            if not university:
-                university = University.objects.create(name=custom_uni)
-            instance.university = university  # Assign the found or newly created university
+     instance = super().update(instance, validated_data)
+     instance.update_role()  # Ensure role transition is checked
+     return instance
 
-        instance = super().update(instance, validated_data)
-        instance.update_role()  # Ensure role transition is checked
-        return instance

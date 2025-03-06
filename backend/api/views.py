@@ -1,5 +1,6 @@
 from rest_framework.generics import ListCreateAPIView, CreateAPIView, UpdateAPIView, RetrieveUpdateAPIView
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .permissions import IsCareersTeam
@@ -58,20 +59,27 @@ class ProfileUpdateView(RetrieveUpdateAPIView):
         return self.request.user  
 
     def update(self, request, *args, **kwargs):
-        user = self.get_object()
-        data = request.data.copy()  
+     user = self.get_object()
+     data = request.data.copy()
 
-        university_name = data.pop("university", "").strip()
-
-        if university_name:
-            # Check if the university exists; if not, create it
-            university, created = University.objects.get_or_create(name__iexact=university_name)
-            data["university"] = university.id  # Assign the university ID
-
-        serializer = self.get_serializer(user, data=data, partial=True)
-        if serializer.is_valid():
+     try:
+         serializer = self.get_serializer(user, data=data, partial=True)
+         if serializer.is_valid():
             self.perform_update(serializer)
             user.update_role()  # Ensure role transition is checked
-            return Response(serializer.data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+         logger.warning(f"Profile update validation error: {serializer.errors}")
+         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+     except Exception as e:
+        logger.error(f"Unexpected Error in Profile Update: {e}", exc_info=True)
+        return Response({"error": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+     
+class UserDetailView(APIView):
+    permission_classes = [IsAuthenticated]  # Ensure only logged-in users can access this
+
+    def get(self, request):
+        user = request.user
+        serializer = UserSerializer(user)
+        return Response(serializer.data)
