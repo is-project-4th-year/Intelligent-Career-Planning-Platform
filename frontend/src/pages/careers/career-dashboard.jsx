@@ -11,14 +11,21 @@ const CareerDashboard = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const res = await api.get("/api/user/"); // Fetch user details
+        const res = await api.get("/api/user/"); 
         setUser(res.data);
+
+        // Redirect if user is not a CareerMember
+        if (res.data.role !== "CareerMember") {
+          navigate("/dashboard");
+        }
       } catch (error) {
         console.error("Error fetching user data:", error);
+        navigate("/"); 
       }
     };
+
     fetchUserData();
-  }, []);
+  }, [navigate]);
 
   // Function to get initials from first_name and last_name
   const getInitials = (name) => {
