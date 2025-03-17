@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
-from .models import JobInternshipAssignedTo, User, University, JobInternship, InternshipApplication
+from .models import JobInternshipAssignedTo, Partner, PartnerInteraction, User, University, JobInternship, InternshipApplication
+from django.utils.timezone import now
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -108,4 +109,36 @@ class AssignInternshipSerializer(serializers.ModelSerializer):
             JobInternshipAssignedTo.objects.create(user=assigned_student, jobinternship=internship)
 
         return internship
+    
+class PartnerSerializer(serializers.ModelSerializer):
+    relationship_owner = serializers.ReadOnlyField(source="relationship_owner.id")
+
+    class Meta:
+        model = Partner
+        fields = "__all__"  # Include all fields
+
+    def update(self, instance, validated_data):
+        """Allows updating category, lead_type, and status."""
+        for field in ["category", "lead_type", "status"]:
+            if field in validated_data:
+                setattr(instance, field, validated_data[field])
+
+        instance.save()
+        return instance
+
+class PartnerInteractionSerializer(serializers.ModelSerializer):
+    career_member_name = serializers.ReadOnlyField(source="career_member.first_name")  # ✅ Show career member's name
+
+    class Meta:
+        model = PartnerInteraction
+        fields = ["interaction_id", "partner", "career_member", "career_member_name", "interaction_type", "notes", "interaction_date"]
+        read_only_fields = ["career_member"]  # ✅ Prevents frontend from needing to send this
+
+    def create(self, validated_data):
+        """Ensure the logged-in user is assigned as the career_member."""
+        request = self.context["request"]  # ✅ Get the request context
+
+        validated_data["career_member"] = request.user  # ✅ Assign the logged-in user
+        return super().create(validated_data)
+
 

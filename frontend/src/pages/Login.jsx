@@ -48,31 +48,31 @@ const Login = () => {
 
                 <form className="auth-form" onSubmit={handleLogin}>
                     <label>Email address</label>
-                    <input 
-                        type="email" 
-                        placeholder="Enter your email" 
-                        value={email} 
-                        onChange={(e) => setEmail(e.target.value)} 
-                        required 
+                    <input
+                        type="email"
+                        placeholder="Enter your email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
                     />
-                    
+
                     <label>Password</label>
-                    <input 
-                        type="password" 
-                        placeholder="Enter your password" 
-                        value={password} 
-                        onChange={(e) => setPassword(e.target.value)} 
-                        required 
+                    <input
+                        type="password"
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
                     />
-                    
+
                     <div className="auth-options">
                         <Link to="/forgot-password">Forgot password</Link>
                     </div>
-                    
+
                     <button type="submit" className="login-btn">Login</button>
                 </form>
-            
-                
+
+
                 <p>Don't have an account? <Link to="/register">Sign Up</Link></p>
             </div>
         </div>

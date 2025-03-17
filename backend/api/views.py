@@ -5,8 +5,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .permissions import IsCareersTeam
 from django.utils.timezone import now
-from .models import JobInternshipAssignedTo, University, User, JobInternship, InternshipApplication
-from .serializers import AssignInternshipSerializer, UserSerializer, RegisterUserSerializer, ProfileUpdateSerializer, JobInternshipSerializer, InternshipApplicationSerializer
+from .models import JobInternshipAssignedTo, Partner, PartnerInteraction, User, JobInternship, InternshipApplication
+from .serializers import AssignInternshipSerializer, PartnerInteractionSerializer, PartnerSerializer, UserSerializer, RegisterUserSerializer, ProfileUpdateSerializer, JobInternshipSerializer, InternshipApplicationSerializer
 from django.http import JsonResponse
 from django.views import View
 from django.db.utils import IntegrityError
@@ -228,3 +228,47 @@ class InternshipApplicationDetailView(RetrieveAPIView):
 
     def get_queryset(self):
         return InternshipApplication.objects.all()
+    
+class PartnerListCreateView(ListCreateAPIView):
+    """Career Members can list all partners and add new ones."""
+    queryset = Partner.objects.all()
+    serializer_class = PartnerSerializer
+    permission_classes = [IsAuthenticated, IsCareersTeam]
+
+    def perform_create(self, serializer):
+        """Automatically assign relationship owner as the creator."""
+        serializer.save(relationship_owner=self.request.user)
+
+class PartnerDetailUpdateView(RetrieveUpdateAPIView):
+    """Career Members can view or update a specific partner."""
+    queryset = Partner.objects.all()
+    serializer_class = PartnerSerializer
+    permission_classes = [IsAuthenticated, IsCareersTeam]
+
+    def patch(self, request, *args, **kwargs):
+        """Handles partial updates for category, lead_type, and status."""
+        return self.partial_update(request, *args, **kwargs)
+
+class PartnerInteractionListCreateView(ListCreateAPIView):
+    """Career Members can log interactions with partners and view all interactions for a specific partner."""
+    serializer_class = PartnerInteractionSerializer
+    permission_classes = [IsAuthenticated, IsCareersTeam]
+
+    def get_queryset(self):
+        """Retrieve only interactions related to a specific partner."""
+        partner_id = self.kwargs.get("partner_id")
+        if not partner_id:
+            return PartnerInteraction.objects.none()
+        return PartnerInteraction.objects.filter(partner_id=partner_id).select_related("career_member", "partner")
+
+    def perform_create(self, serializer):
+        """Ensure career_member is set automatically."""
+        serializer.save(career_member=self.request.user)  # ✅ Assigns logged-in user
+
+
+class PartnerDeleteView(DestroyAPIView):
+    """Allows Career Members to delete a partner."""
+    queryset = Partner.objects.all()
+    serializer_class = PartnerSerializer
+    permission_classes = [IsAuthenticated, IsCareersTeam]
+

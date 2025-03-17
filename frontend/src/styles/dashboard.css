@@ -549,6 +549,77 @@ tr:nth-child(even) {
   .dropdown-item:hover {
     background: #f0f0f0;
   }
+  /* 🔹 Interactions Container */
+.interactions-container {
+    margin-top: 15px;
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* 🔹 Interaction List */
+.interactions-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    max-height: 300px;
+    overflow-y: auto; /* Allows scrolling if too many interactions */
+}
+
+/* 🔹 Individual Interaction */
+.interaction-item {
+    background: #f9f9f9;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.08);
+    transition: transform 0.2s ease-in-out;
+}
+
+.interaction-item:hover {
+    transform: scale(1.02);
+}
+
+/* 🔹 Interaction Header */
+.interaction-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    color: #1f1f1f;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+    margin-bottom: 5px;
+}
+
+/* 🔹 Interaction Date */
+.interaction-date {
+    font-size: 12px;
+    color: #888;
+}
+
+/* 🔹 Interaction Type */
+.interaction-type {
+    font-weight: bold;
+    color: #26ab9f;
+    margin-bottom: 4px;
+}
+
+/* 🔹 Interaction Notes */
+.interaction-notes {
+    font-size: 12px;
+    color: #555;
+}
+
+/* 🔹 No Interactions Message */
+.no-interactions {
+    font-size: 12px;
+    color: #777;
+    text-align: center;
+    font-style: italic;
+    margin-top: 10px;
+}
+
   
 
 /* ✅ Animation for Smooth Appearance */

@@ -9,8 +9,8 @@ const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState("dashboard"); // Track active section
   const [internships, setInternships] = useState([]);
   const [applications, setApplications] = useState([]);
-  const [profileData, setProfileData] = useState({}); 
-  const [editProfile, setEditProfile] = useState(false); 
+  const [profileData, setProfileData] = useState({});
+  const [editProfile, setEditProfile] = useState(false);
   const [selectedInternship, setSelectedInternship] = useState(null);
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [resumeLink, setResumeLink] = useState("");
@@ -21,12 +21,12 @@ const StudentDashboard = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const res = await api.get("/api/user/"); 
+        const res = await api.get("/api/user/");
         setUser(res.data);
         setProfileData(res.data);
       } catch (error) {
         console.error("Error fetching user data:", error);
-        navigate("/"); 
+        navigate("/");
       }
     };
 
@@ -70,27 +70,27 @@ const StudentDashboard = () => {
   };
   const handleApply = async (e) => {
     e.preventDefault();
-  
+
     if (!resumeLink && !resumeFile) {
       alert("Please provide either a resume link or upload a resume file.");
       return;
     }
-  
+
     const formData = new FormData();
     formData.append("internship", selectedInternship.internship_id);
     formData.append("cover_letter", coverLetter);
-    
+
     if (resumeFile) {
       formData.append("resume_file", resumeFile);
     } else {
       formData.append("resume_link", resumeLink);
     }
-  
+
     try {
       await api.post("/api/internships/apply/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-  
+
       setShowApplyModal(false);
       fetchInternships();
       fetchApplications();
@@ -100,7 +100,7 @@ const StudentDashboard = () => {
       alert("Failed to apply. You might have already applied.");
     }
   };
-  
+
 
   const handleWithdraw = async (applicationId) => {
     try {
@@ -118,32 +118,32 @@ const StudentDashboard = () => {
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
-  
+
     let updatedProfile = { ...profileData };
-  
+
     if (profileData.role === "KenSAP" && profileData.university) {
       updatedProfile.graduation_month = updatedProfile.graduation_month || 1;
       updatedProfile.graduation_year = updatedProfile.graduation_year || new Date().getFullYear() + 4;
     }
-  
+
     try {
       await api.put("/api/profile/update/", updatedProfile);
-      
+
       // ✅ Update local state so the page updates immediately
-      setUser(updatedProfile); 
+      setUser(updatedProfile);
       setProfileData(updatedProfile);
-      
+
       // ✅ Show success message
       alert("Profile updated successfully!");
-      
+
       setEditProfile(false);
     } catch (error) {
       console.error("Error updating profile:", error);
       alert("Failed to update profile. Please try again.");
     }
   };
-  
-  
+
+
   const getInitials = (name) => {
     if (!name) return "U";
     const names = name.split(" ");
@@ -161,32 +161,32 @@ const StudentDashboard = () => {
       <aside className="sidebar">
         <h2>KenSAP</h2>
         <ul>
-          <li 
-            className={activeTab === "dashboard" ? "active" : ""} 
+          <li
+            className={activeTab === "dashboard" ? "active" : ""}
             onClick={() => setActiveTab("dashboard")}
           >
             Dashboard
           </li>
-          <li 
-            className={activeTab === "mentorship" ? "active" : ""} 
+          <li
+            className={activeTab === "mentorship" ? "active" : ""}
             onClick={() => setActiveTab("mentorship")}
           >
             Mentorship
           </li>
-          <li 
-            className={activeTab === "e-learning" ? "active" : ""} 
+          <li
+            className={activeTab === "e-learning" ? "active" : ""}
             onClick={() => setActiveTab("e-learning")}
           >
             E-Learning
           </li>
-          <li 
-            className={activeTab === "internships" ? "active" : ""} 
+          <li
+            className={activeTab === "internships" ? "active" : ""}
             onClick={() => setActiveTab("internships")}
           >
             Internships
           </li>
-          <li 
-            className={activeTab === "settings" ? "active" : ""} 
+          <li
+            className={activeTab === "settings" ? "active" : ""}
             onClick={() => setActiveTab("settings")}
           >
             Settings
@@ -209,8 +209,8 @@ const StudentDashboard = () => {
       <main className="main-content">
         <header className="header">
           <h1>
-        {activeTab === "profile" && "Update Profile"}
-        </h1>
+            {activeTab === "profile" && "Update Profile"}
+          </h1>
           {/* <h1>{activeTab.replace(/([A-Z])/g, " $1").trim()}</h1> */}
           <input type="text" placeholder="Search..." className="search-bar-student" />
           {/* <button className="new-entry-button">New Entry</button> */}
@@ -236,37 +236,37 @@ const StudentDashboard = () => {
               <button className="modal-close-btn" onClick={() => setShowApplyModal(false)}>✖</button>
               <h3>Apply for {selectedInternship.title}</h3>
               <form onSubmit={handleApply}>
-  <label>Resume</label>
-  <input
-    type="url"
-    placeholder="Enter resume link"
-    value={resumeLink}
-    onChange={(e) => {
-      setResumeLink(e.target.value);
-      setResumeFile(null); // Reset file if link is entered
-    }}
-  />
+                <label>Resume</label>
+                <input
+                  type="url"
+                  placeholder="Enter resume link"
+                  value={resumeLink}
+                  onChange={(e) => {
+                    setResumeLink(e.target.value);
+                    setResumeFile(null); // Reset file if link is entered
+                  }}
+                />
 
-  <label>Or Upload Resume (PDF)</label>
-  <input
-    type="file"
-    accept="application/pdf"
-    onChange={(e) => {
-      setResumeFile(e.target.files[0]);
-      setResumeLink(""); // Reset link if file is uploaded
-    }}
-  />
+                <label>Or Upload Resume (PDF)</label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => {
+                    setResumeFile(e.target.files[0]);
+                    setResumeLink(""); // Reset link if file is uploaded
+                  }}
+                />
 
-  <label>Cover Letter</label>
-  <textarea
-    placeholder="Write your cover letter..."
-    value={coverLetter}
-    onChange={(e) => setCoverLetter(e.target.value)}
-    required
-  />
+                <label>Cover Letter</label>
+                <textarea
+                  placeholder="Write your cover letter..."
+                  value={coverLetter}
+                  onChange={(e) => setCoverLetter(e.target.value)}
+                  required
+                />
 
-  <button type="submit" className="confirm-btn">Submit Application</button>
-</form>
+                <button type="submit" className="confirm-btn">Submit Application</button>
+              </form>
 
             </div>
           </div>
@@ -275,11 +275,11 @@ const StudentDashboard = () => {
         <section className="content-section">
           {activeTab === "dashboard" && (
             <div className="dashboard-grid">
-  <div className="card">Enrolled Courses: 4</div>
-  <div className="card">Active Mentorships: 2</div>
-  <div className="card">Internship Applications: {applications?.length || 0}</div>
+              <div className="card">Enrolled Courses: 4</div>
+              <div className="card">Active Mentorships: 2</div>
+              <div className="card">Internship Applications: {applications?.length || 0}</div>
 
-</div>
+            </div>
 
           )}
 
@@ -290,15 +290,15 @@ const StudentDashboard = () => {
                 {internships.map((internship) => (
                   <div key={internship.internship_id} className="internship-card">
                     <h3>{internship.title}</h3>
-                     <p><strong>Company:</strong> {internship.company}</p>
-          <p><strong>Location:</strong> {internship.location}</p>
-          <p><strong>Deadline:</strong> {internship.deadline}</p>
-          <button className="apply-btn" onClick={() => openApplyModal(internship)}>
-  Apply
-</button>
-        </div>
-      ))}
-    </div>
+                    <p><strong>Company:</strong> {internship.company}</p>
+                    <p><strong>Location:</strong> {internship.location}</p>
+                    <p><strong>Deadline:</strong> {internship.deadline}</p>
+                    <button className="apply-btn" onClick={() => openApplyModal(internship)}>
+                      Apply
+                    </button>
+                  </div>
+                ))}
+              </div>
 
               <h2>My Applications</h2>
               <table>
@@ -348,89 +348,89 @@ const StudentDashboard = () => {
           )}
           {/* Profile Update Section */}
           {activeTab === "profile" && (
-  <div className="profile-content">
-    <form className="profile-form" onSubmit={handleProfileUpdate}>
-      {/* Basic Info */}
-      <label>First Name</label>
-      <input type="text" name="first_name" value={profileData.first_name || ""} onChange={handleProfileChange} required />
+            <div className="profile-content">
+              <form className="profile-form" onSubmit={handleProfileUpdate}>
+                {/* Basic Info */}
+                <label>First Name</label>
+                <input type="text" name="first_name" value={profileData.first_name || ""} onChange={handleProfileChange} required />
 
-      <label>Last Name</label>
-      <input type="text" name="last_name" value={profileData.last_name || ""} onChange={handleProfileChange} required />
+                <label>Last Name</label>
+                <input type="text" name="last_name" value={profileData.last_name || ""} onChange={handleProfileChange} required />
 
-      <label>Email</label>
-      <input type="email" name="email" value={profileData.email || ""} disabled />
+                <label>Email</label>
+                <input type="email" name="email" value={profileData.email || ""} disabled />
 
-      <label>Phone</label>
-      <input type="text" name="phone" value={profileData.phone || ""} onChange={handleProfileChange} />
+                <label>Phone</label>
+                <input type="text" name="phone" value={profileData.phone || ""} onChange={handleProfileChange} />
 
-      {/* Role-Specific Fields */}
-      {profileData.role === "KenSAP" && (
-        <>
-          <label>High School</label>
-          <input type="text" name="highschool" value={profileData.highschool || ""} onChange={handleProfileChange} required />
+                {/* Role-Specific Fields */}
+                {profileData.role === "KenSAP" && (
+                  <>
+                    <label>High School</label>
+                    <input type="text" name="highschool" value={profileData.highschool || ""} onChange={handleProfileChange} required />
 
-          <label>Kensap Year</label>
-          <input type="number" name="kensap_year" value={profileData.kensap_year || ""} onChange={handleProfileChange} required />
-        </>
-      )}
-      {(profileData.role === "KenSAP" || profileData.role === "Undergrad" || profileData.role === "Alumni") && (
-  <>
-    <label>University</label>
-    <input
-      type="text"
-      name="university"
-      value={profileData.university || ""}
-      onChange={handleProfileChange}
-      required
-    />
-  </>
-)}
+                    <label>Kensap Year</label>
+                    <input type="number" name="kensap_year" value={profileData.kensap_year || ""} onChange={handleProfileChange} required />
+                  </>
+                )}
+                {(profileData.role === "KenSAP" || profileData.role === "Undergrad" || profileData.role === "Alumni") && (
+                  <>
+                    <label>University</label>
+                    <input
+                      type="text"
+                      name="university"
+                      value={profileData.university || ""}
+                      onChange={handleProfileChange}
+                      required
+                    />
+                  </>
+                )}
 
 
-      {(profileData.role === "Undergrad" || profileData.role === "Alumni") && (
-        <>
-          <label>Major</label>
-          <input type="text" name="major" value={profileData.major || ""} onChange={handleProfileChange} />
+                {(profileData.role === "Undergrad" || profileData.role === "Alumni") && (
+                  <>
+                    <label>Major</label>
+                    <input type="text" name="major" value={profileData.major || ""} onChange={handleProfileChange} />
 
-          <label>Minor</label>
-          <input type="text" name="minor" value={profileData.minor || ""} onChange={handleProfileChange} />
+                    <label>Minor</label>
+                    <input type="text" name="minor" value={profileData.minor || ""} onChange={handleProfileChange} />
 
-          <label>GPA</label>
-          <input type="number" step="0.01" name="gpa" value={profileData.gpa || ""} onChange={handleProfileChange} />
-        </>
-      )}
+                    <label>GPA</label>
+                    <input type="number" step="0.01" name="gpa" value={profileData.gpa || ""} onChange={handleProfileChange} />
+                  </>
+                )}
 
-      {profileData.role === "Undergrad" && (
-        <>
-          <label>Graduation Month</label>
-          <select name="graduation_month" value={profileData.graduation_month || ""} onChange={handleProfileChange}>
-            <option value="">Select Month</option>
-            {Array.from({ length: 12 }, (_, i) => (
-              <option key={i + 1} value={i + 1}>
-                {new Date(0, i).toLocaleString("en-US", { month: "long" })}
-              </option>
-            ))}
-          </select>
+                {profileData.role === "Undergrad" && (
+                  <>
+                    <label>Graduation Month</label>
+                    <select name="graduation_month" value={profileData.graduation_month || ""} onChange={handleProfileChange}>
+                      <option value="">Select Month</option>
+                      {Array.from({ length: 12 }, (_, i) => (
+                        <option key={i + 1} value={i + 1}>
+                          {new Date(0, i).toLocaleString("en-US", { month: "long" })}
+                        </option>
+                      ))}
+                    </select>
 
-          <label>Graduation Year</label>
-          <input type="number" name="graduation_year" value={profileData.graduation_year || ""} onChange={handleProfileChange} required />
-        </>
-      )}
+                    <label>Graduation Year</label>
+                    <input type="number" name="graduation_year" value={profileData.graduation_year || ""} onChange={handleProfileChange} required />
+                  </>
+                )}
 
-      {profileData.role === "Alumni" && (
-        <>
-          <label>Company</label>
-          <input type="text" name="company" value={profileData.company || ""} onChange={handleProfileChange} required />
+                {profileData.role === "Alumni" && (
+                  <>
+                    <label>Company</label>
+                    <input type="text" name="company" value={profileData.company || ""} onChange={handleProfileChange} required />
 
-          <label>City</label>
-          <input type="text" name="city" value={profileData.city || ""} onChange={handleProfileChange} />
-        </>
-      )}
+                    <label>City</label>
+                    <input type="text" name="city" value={profileData.city || ""} onChange={handleProfileChange} />
+                  </>
+                )}
 
-      <button type="submit" className="save-profile-btn">Save Changes</button>
-    </form>
-  </div>
-)}
+                <button type="submit" className="save-profile-btn">Save Changes</button>
+              </form>
+            </div>
+          )}
 
         </section>
       </main>

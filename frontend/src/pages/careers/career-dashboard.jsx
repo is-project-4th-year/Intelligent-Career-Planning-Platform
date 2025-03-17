@@ -1,25 +1,31 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "../../styles/dashboard.css"; 
-import api from "../../api"; 
+import "../../styles/dashboard.css";
+import api from "../../api";
 
 const CareerDashboard = () => {
   const [user, setUser] = useState(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [activeTab, setActiveTab] = useState("dashboard"); 
-  const [profileData, setProfileData] = useState({}); 
-  const [editProfile, setEditProfile] = useState(false); 
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [profileData, setProfileData] = useState({});
+  const [editProfile, setEditProfile] = useState(false);
   const [internships, setInternships] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [showInternshipModal, setShowInternshipModal] = useState(false);
   const [students, setStudents] = useState([]);
   const [selectedInternship, setSelectedInternship] = useState(null);
-  const [searchQuery, setSearchQuery] = useState(""); 
-  const [showDropdown, setShowDropdown] = useState(false); 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [partners, setPartners] = useState([]);
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedPartner, setSelectedPartner] = useState(null);
+  const [showPartnerActionsModal, setShowPartnerActionsModal] = useState(false);
+  const [interactions, setInteractions] = useState([]);
+  const [newInteraction, setNewInteraction] = useState({ interaction_type: "", notes: "" });
   const filteredStudents = students.filter((student) =>
-  `${student.first_name} ${student.last_name}`.toLowerCase().includes(searchQuery.toLowerCase())
-);
+    `${student.first_name} ${student.last_name}`.toLowerCase().includes(searchQuery.toLowerCase())
+  );
   const [newInternship, setNewInternship] = useState({
     title: "",
     description: "",
@@ -28,27 +34,44 @@ const CareerDashboard = () => {
     deadline: "",
     assigned_student: "",
   });
+  const [newPartner, setNewPartner] = useState({
+    partner_name: "",
+    category: "",
+    lead_type: "",
+    status: "Not Contacted",
+    contact_person: "",
+    email: "",
+    phone: "",
+    city: "",
+    country: "",
+    website: "",
+    linkedin: "",
+    notes: "",
+  });
 
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const res = await api.get("/api/user/"); 
+        const res = await api.get("/api/user/");
         setUser(res.data);
         setProfileData(res.data);
       } catch (error) {
         console.error("Error fetching user data:", error);
-        navigate("/"); 
+        navigate("/");
       }
     };
-
     fetchUserData();
   }, [navigate]);
   useEffect(() => {
+
     if (activeTab === "internships") {
       fetchInternships();
       fetchStudents();
+    }
+    if (activeTab === "partners") {
+      fetchPartners();
     }
   }, [activeTab]);
 
@@ -85,6 +108,9 @@ const CareerDashboard = () => {
   };
 
   const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this internship?")) return;
+
+    setShowInternshipModal(false)
     try {
       await api.delete(`/api/internships/${id}/delete/`);
       fetchInternships();
@@ -100,18 +126,18 @@ const CareerDashboard = () => {
       ),
     }));
   };
-  
+
   const handleStatusUpdate = async (appId) => {
     try {
       const updatedApp = selectedInternship.applications.find((app) => app.id === appId);
-  
+
       if (!updatedApp) {
         alert("Application not found!");
         return;
       }
-  
+
       await api.patch(`/api/internships/application/${appId}/`, { status: updatedApp.status });
-  
+
       alert("Status updated successfully!");
       fetchInternships();
     } catch (error) {
@@ -119,6 +145,144 @@ const CareerDashboard = () => {
       alert("Failed to update status.");
     }
   };
+  const fetchPartners = async () => {
+    try {
+      const res = await api.get("/api/partners/");
+      setPartners(res.data);
+    } catch (error) {
+      console.error("Error fetching partners:", error);
+    }
+  };
+  const CATEGORY_MAP = {
+    "Pre-University Internships": "pre_university",
+    "Summer Internships": "summer_internships",
+    "Full-Time Job Placements": "full_time",
+    "Fundraising Dinner": "fundraising",
+    "Exploratory": "exploratory",
+  };
+
+  const LEAD_TYPE_MAP = {
+    "Cold": "cold",
+    "Warm": "warm",
+    "Hot": "hot",
+  };
+
+  const STATUS_MAP = {
+    "Not Contacted": "not_contacted",
+    "Contacted": "contacted",
+    "Closed": "closed",
+    "Follow Up": "follow_up",
+    "Alan to Follow Up": "alan_to_follow",
+  };
+
+  const handleCreatePartner = async (e) => {
+    e.preventDefault();
+    try {
+      const formattedCategory = CATEGORY_MAP[newPartner.category] || newPartner.category;
+      const formattedLeadType = LEAD_TYPE_MAP[newPartner.lead_type] || newPartner.lead_type;
+      const formattedStatus = STATUS_MAP[newPartner.status] || newPartner.status;
+
+      const payload = {
+        ...newPartner,
+        category: formattedCategory,
+        lead_type: formattedLeadType,
+        status: formattedStatus
+      };
+
+      await api.post("/api/partners/", payload);
+      fetchPartners();
+      setShowPartnerModal(false);
+      setNewPartner({
+        partner_name: "",
+        category: "",
+        lead_type: "",
+        status: "Not Contacted",
+        contact_person: "",
+        email: "",
+        phone: "",
+        city: "",
+        country: "",
+        website: "",
+        linkedin: "",
+        notes: "",
+      });
+    } catch (error) {
+      console.error("Error creating partner:", error.response?.data || error.message);
+      alert(JSON.stringify(error.response?.data, null, 2)); // ✅ Show exact error for debugging
+    }
+  };
+  const openPartnerActionsModal = async (partner) => {
+    try {
+      setSelectedPartner(partner);
+
+      // Fetch interactions for the selected partner
+      const res = await api.get(`/api/partners/${partner.partner_id}/interactions/`);
+      setInteractions(res.data);
+
+      setShowPartnerActionsModal(true);
+    } catch (error) {
+      console.error("Error fetching interactions:", error);
+    }
+  };
+  const handleUpdatePartner = async () => {
+    try {
+      await api.patch(`/api/partners/${selectedPartner.partner_id}/`, {
+        category: selectedPartner.category,
+        lead_type: selectedPartner.lead_type,
+        status: selectedPartner.status
+      });
+
+      fetchPartners(); // Refresh the partner list
+      setShowPartnerActionsModal(false);
+    } catch (error) {
+      console.error("Error updating partner:", error);
+    }
+  };
+  const handleDeletePartner = async () => {
+    if (!window.confirm("Are you sure you want to delete this partner?")) return;
+
+    try {
+      await api.delete(`/api/partners/${selectedPartner.partner_id}/delete/`);
+      fetchPartners(); // Refresh list
+      setShowPartnerActionsModal(false);
+    } catch (error) {
+      console.error("Error deleting partner:", error);
+    }
+  };
+  const handleAddInteraction = async () => {
+    if (!selectedPartner) {
+      console.error("No partner selected.");
+      return;
+    }
+
+    try {
+      await api.post(`/api/partners/${selectedPartner.partner_id}/interactions/`, {
+        partner: selectedPartner.partner_id,
+        interaction_type: newInteraction.interaction_type,
+        notes: newInteraction.notes,
+        interaction_date: newInteraction.interaction_date, // ✅ Allow manual date entry
+      });
+
+      openPartnerActionsModal(selectedPartner); // Refresh interactions
+      setNewInteraction({ interaction_type: "", notes: "", interaction_date: "" }); // ✅ Reset form
+    } catch (error) {
+      console.error("Error adding interaction:", error.response?.data || error.message);
+      alert(JSON.stringify(error.response?.data, null, 2)); // Show exact error
+    }
+  };
+
+
+
+  // const fetchPartnerInteractions = async (partnerId) => {
+  //   try {
+  //     const res = await api.get(`/api/partners/${partnerId}/interactions/`);  // ✅ Correct URL
+  //     setInteractions(res.data);
+  //   } catch (error) {
+  //     console.error("Error fetching interactions:", error);
+  //   }
+  // };
+
+
   const openInternshipModal = async (internship) => {
     try {
       const res = await api.get(`/api/internships/${internship.internship_id}/applications/`);
@@ -128,7 +292,7 @@ const CareerDashboard = () => {
       console.error("Error fetching applications:", error);
     }
   };
-  
+
   const openApplicationDetails = async (applicationId) => {
     try {
       const res = await api.get(`/api/internships/applications/${applicationId}/`);
@@ -138,12 +302,12 @@ const CareerDashboard = () => {
       console.error("Error fetching application details:", error);
     }
   };
-  
+
   const closeApplicationModal = () => {
     setSelectedApplication(null);
     setShowInternshipModal(true); // Reopen internship modal when closing application modal
   };
-  
+
 
   const getInitials = (name) => {
     if (!name) return "U";
@@ -179,9 +343,10 @@ const CareerDashboard = () => {
           <li className={activeTab === "dashboard" ? "active" : ""} onClick={() => setActiveTab("dashboard")}>Dashboard</li>
           <li className={activeTab === "careerOpportunities" ? "active" : ""} onClick={() => setActiveTab("careerOpportunities")}>Career Opportunities</li>
           <li className={activeTab === "internships" ? "active" : ""} onClick={() => setActiveTab("internships")}>Internships</li>
+          <li className={activeTab === "partners" ? "active" : ""} onClick={() => setActiveTab("partners")}>Partners</li>
           <li className={activeTab === "settings" ? "active" : ""} onClick={() => setActiveTab("settings")}>Settings</li>
         </ul>
-        
+
         {/* User Profile - Clickable */}
         {user && (
           <div className={`user-profile ${activeTab === "profile" ? "active" : ""}`} onClick={() => setActiveTab("profile")}>
@@ -196,25 +361,37 @@ const CareerDashboard = () => {
 
       {/* Main Content */}
       <main className="main-content">
-      <header className="header">
-  <h1>
-    {activeTab === "dashboard" && "Careers Dashboard"}
-    {activeTab === "internships" && "Manage Internships"}
-    {activeTab === "careerOpportunities" && "Career Opportunities"}
-    {activeTab === "settings" && "Settings"}
-    {activeTab === "profile" && "Update Profile"}
-  </h1>
+        <header className="header">
+          <h1>
+            {activeTab === "dashboard"
+              ? "Careers Dashboard"
+              : activeTab === "internships"
+                ? "Manage Internships"
+                : activeTab === "careerOpportunities"
+                  ? "Career Opportunities"
+                  : activeTab === "settings"
+                    ? "Settings"
+                    : activeTab === "profile"
+                      ? "Update Profile"
+                      : activeTab === "partners"
+                        ? "Manage Partners"
+                        : ""}
+          </h1>
 
-  <input type="text" placeholder="Search..." className="search-bar" />
 
-  {activeTab === "internships" ? (
-    <button className="new-entry-button" onClick={() => setShowModal(true)}>+ Add Internship</button>
-  ) : (
-    <button className="new-entry-button">New Entry</button>
-  )}
+          <input type="text" placeholder="Search..." className="search-bar" />
 
-  <button className="logout-button" onClick={() => setShowLogoutModal(true)}>Logout</button>
-</header>
+          {activeTab === "internships" ? (
+            <button className="new-entry-button" onClick={() => setShowModal(true)}>+ Add Internship</button>
+          ) : activeTab === "partners" ? (
+            <button className="new-entry-button" onClick={() => setShowPartnerModal(true)}>+ Add Partner</button>
+          ) : (
+            <button className="new-entry-button">New Entry</button>
+          )}
+
+
+          <button className="logout-button" onClick={() => setShowLogoutModal(true)}>Logout</button>
+        </header>
 
         {/* Logout Confirmation Modal */}
         {showLogoutModal && (
@@ -238,166 +415,166 @@ const CareerDashboard = () => {
           {/* {activeTab === "internships" && <div className="internships-content">Internships</div>} */}
           {activeTab === "settings" && <div className="settings-content">Settings</div>}
           {activeTab === "internships" && (
-  <div className="internships-content">
-{/* <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}> */}
-  {/* <h2>Manage Internships</h2> */}
-  {/* <button className="new-entry-button" onClick={() => setShowModal(true)}>+ Add Internship</button> */}
-{/* </div> */}
+            <div className="internships-content">
+              {/* <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}> */}
+              {/* <h2>Manage Internships</h2> */}
+              {/* <button className="new-entry-button" onClick={() => setShowModal(true)}>+ Add Internship</button> */}
+              {/* </div> */}
 
-<table style={{ marginTop: "10px" }}>
-    <thead>
-      <tr>
-        <th>Title</th>
-        <th>Company</th>
-        <th>Location</th>
-        <th>Deadline</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {internships.map((internship) => (
-        <tr key={internship.internship_id}>
-          <td>{internship.title}</td>
-          <td>{internship.company}</td>
-          <td>{internship.location}</td>
-          <td>{internship.deadline}</td>
-          <td>
-          <button onClick={() => openInternshipModal(internship)}>...</button>
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
+              <table style={{ marginTop: "10px" }}>
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Company</th>
+                    <th>Location</th>
+                    <th>Deadline</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {internships.map((internship) => (
+                    <tr key={internship.internship_id}>
+                      <td>{internship.title}</td>
+                      <td>{internship.company}</td>
+                      <td>{internship.location}</td>
+                      <td>{internship.deadline}</td>
+                      <td>
+                        <button onClick={() => openInternshipModal(internship)}>...</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-  {showInternshipModal && selectedInternship && !selectedApplication && (
-  <div className="modal-overlay">
-    <div className="modal-content">
-      <button className="modal-close-btn" onClick={() => setShowInternshipModal(false)}>✖</button>
-      <h3>{selectedInternship.title}</h3>
-      <p><strong>Company:</strong> {selectedInternship.company}</p>
-      <p><strong>Location:</strong> {selectedInternship.location}</p>
-      <p><strong>Deadline:</strong> {selectedInternship.deadline}</p>
-      <p><strong>Description:</strong> {selectedInternship.description}</p>
+              {showInternshipModal && selectedInternship && !selectedApplication && (
+                <div className="modal-overlay">
+                  <div className="modal-content">
+                    <button className="modal-close-btn" onClick={() => setShowInternshipModal(false)}>✖</button>
+                    <h3>{selectedInternship.title}</h3>
+                    <p><strong>Company:</strong> {selectedInternship.company}</p>
+                    <p><strong>Location:</strong> {selectedInternship.location}</p>
+                    <p><strong>Deadline:</strong> {selectedInternship.deadline}</p>
+                    <p><strong>Description:</strong> {selectedInternship.description}</p>
 
-      {/* Applications Table */}
-      <h4>Applications</h4>
-      <table>
-        <thead>
-          <tr>
-            <th>Student</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {selectedInternship.applications.map((app) => (
-            <tr key={app.id}>
-              <td>{app.student_name}</td>
-              <td>
-                <select value={app.status} onChange={(e) => handleStatusChange(app.id, e.target.value)}>
-                  <option value="Applied">Applied</option>
-                  <option value="Under Review">Under Review</option>
-                  <option value="Interview">Interview</option>
-                  <option value="Accepted">Accepted</option>
-                  <option value="Rejected">Rejected</option>
-                </select>
-              </td>
-              <td>
-                <button className="confirm-btn" onClick={() => handleStatusUpdate(app.id)}>✔ Save</button>
-              </td>
-              <td>
-                <button onClick={() => openApplicationDetails(app.id)}>📄 View</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {/* Delete Internship */}
-      <button className="delete-btn" onClick={() => handleDelete(selectedInternship.internship_id)}>🗑 Delete Internship</button>
-    </div>
-  </div>
-)}
-{selectedApplication && (
-  <div className="modal-overlay">
-    <div className="modal-content">
-      <button className="modal-close-btn" onClick={closeApplicationModal}>✖</button>
-      <h3>Application Details</h3>
-      <p><strong>Student:</strong> {selectedApplication.student_name}</p>
-      <p><strong>Internship:</strong> {selectedApplication.internship_title}</p>
-      <p><strong>Cover Letter:</strong></p>
-      <textarea readOnly value={selectedApplication.cover_letter} style={{ width: "100%", height: "150px" }}></textarea>
-      <p><strong>Resume:</strong></p>
-{selectedApplication.resume_link ? (
-  <p>
-    <a href={selectedApplication.resume_link} target="_blank" rel="noopener noreferrer">
-      View Resume (Link)
-    </a>
-  </p>
-) : selectedApplication.resume_file ? (
-  <p>
-    <a href={selectedApplication.resume_file} target="_blank" rel="noopener noreferrer">
-      View Resume (PDF)
-    </a>
-  </p>
-) : (
-  <p>No resume provided.</p>
-)}
-    </div>
-  </div>
-)}
+                    {/* Applications Table */}
+                    <h4>Applications</h4>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Student</th>
+                          <th>Status</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedInternship.applications.map((app) => (
+                          <tr key={app.id}>
+                            <td>{app.student_name}</td>
+                            <td>
+                              <select value={app.status} onChange={(e) => handleStatusChange(app.id, e.target.value)}>
+                                <option value="Applied">Applied</option>
+                                <option value="Under Review">Under Review</option>
+                                <option value="Interview">Interview</option>
+                                <option value="Accepted">Accepted</option>
+                                <option value="Rejected">Rejected</option>
+                              </select>
+                            </td>
+                            <td>
+                              <button className="confirm-btn" onClick={() => handleStatusUpdate(app.id)}>✔ Save</button>
+                            </td>
+                            <td>
+                              <button onClick={() => openApplicationDetails(app.id)}>📄 View</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {/* Delete Internship */}
+                    <button className="delete-btn" onClick={() => handleDelete(selectedInternship.internship_id)}>🗑 Delete Internship</button>
+                  </div>
+                </div>
+              )}
+              {selectedApplication && (
+                <div className="modal-overlay">
+                  <div className="modal-content">
+                    <button className="modal-close-btn" onClick={closeApplicationModal}>✖</button>
+                    <h3>Application Details</h3>
+                    <p><strong>Student:</strong> {selectedApplication.student_name}</p>
+                    <p><strong>Internship:</strong> {selectedApplication.internship_title}</p>
+                    <p><strong>Cover Letter:</strong></p>
+                    <textarea readOnly value={selectedApplication.cover_letter} style={{ width: "100%", height: "150px" }}></textarea>
+                    <p><strong>Resume:</strong></p>
+                    {selectedApplication.resume_link ? (
+                      <p>
+                        <a href={selectedApplication.resume_link} target="_blank" rel="noopener noreferrer">
+                          View Resume (Link)
+                        </a>
+                      </p>
+                    ) : selectedApplication.resume_file ? (
+                      <p>
+                        <a href={selectedApplication.resume_file} target="_blank" rel="noopener noreferrer">
+                          View Resume (PDF)
+                        </a>
+                      </p>
+                    ) : (
+                      <p>No resume provided.</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
-  {showModal && (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <button className="modal-close-btn" onClick={() => setShowModal(false)}>✖</button>
-        <h3>Create Internship</h3>
-        <form onSubmit={handleCreate}>
-          <input type="text" placeholder="Title" value={newInternship.title} onChange={(e) => setNewInternship({ ...newInternship, title: e.target.value })} required />
-          <input type="text" placeholder="Company" value={newInternship.company} onChange={(e) => setNewInternship({ ...newInternship, company: e.target.value })} required />
-          <input type="text" placeholder="Location" value={newInternship.location} onChange={(e) => setNewInternship({ ...newInternship, location: e.target.value })} required />
-          <textarea placeholder="Description" value={newInternship.description} onChange={(e) => setNewInternship({ ...newInternship, description: e.target.value })} required />
-          <input type="date" value={newInternship.deadline} onChange={(e) => setNewInternship({ ...newInternship, deadline: e.target.value })} required />
+              {showModal && (
+                <div className="modal-overlay">
+                  <div className="modal-content">
+                    <button className="modal-close-btn" onClick={() => setShowModal(false)}>✖</button>
+                    <h3>Create Internship</h3>
+                    <form onSubmit={handleCreate}>
+                      <input type="text" placeholder="Title" value={newInternship.title} onChange={(e) => setNewInternship({ ...newInternship, title: e.target.value })} required />
+                      <input type="text" placeholder="Company" value={newInternship.company} onChange={(e) => setNewInternship({ ...newInternship, company: e.target.value })} required />
+                      <input type="text" placeholder="Location" value={newInternship.location} onChange={(e) => setNewInternship({ ...newInternship, location: e.target.value })} required />
+                      <textarea placeholder="Description" value={newInternship.description} onChange={(e) => setNewInternship({ ...newInternship, description: e.target.value })} required />
+                      <input type="date" value={newInternship.deadline} onChange={(e) => setNewInternship({ ...newInternship, deadline: e.target.value })} required />
 
-          <label>Assign to Student (Optional)</label>
-          <div className="search-dropdown">
-    <input
-      type="text"
-      placeholder="Search for a student..."
-      value={searchQuery}
-      onChange={(e) => setSearchQuery(e.target.value)}
-      onFocus={() => setShowDropdown(true)}
-      onBlur={() => setTimeout(() => setShowDropdown(false), 200)} // Delay closing so user can click
-    />
+                      <label>Assign to Student (Optional)</label>
+                      <div className="search-dropdown">
+                        <input
+                          type="text"
+                          placeholder="Search for a student..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onFocus={() => setShowDropdown(true)}
+                          onBlur={() => setTimeout(() => setShowDropdown(false), 200)} // Delay closing so user can click
+                        />
 
-    {showDropdown && (
-      <div className="dropdown-menu">
-        {filteredStudents.length > 0 ? (
-          filteredStudents.map((student) => (
-            <div
-              key={student.id}
-              className="dropdown-item"
-              onMouseDown={(e) => {
-                e.preventDefault(); // ✅ Prevents onBlur from closing before selection
-                setNewInternship({ ...newInternship, assigned_student: student.id });
-                setSearchQuery(`${student.first_name} ${student.last_name}`);
-                setShowDropdown(false);
-              }}
-            >
-              {student.first_name} {student.last_name}
-            </div>
-          ))
-        ) : (
-          <div className="dropdown-item">No results found</div>
-        )}
-      </div>
-    )}
-  </div>
-<br/><br/>
-          <button type="submit" className="create-btn">Create</button>
-        </form>
-      </div>
-    </div>
-  )}
+                        {showDropdown && (
+                          <div className="dropdown-menu">
+                            {filteredStudents.length > 0 ? (
+                              filteredStudents.map((student) => (
+                                <div
+                                  key={student.id}
+                                  className="dropdown-item"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault(); // ✅ Prevents onBlur from closing before selection
+                                    setNewInternship({ ...newInternship, assigned_student: student.id });
+                                    setSearchQuery(`${student.first_name} ${student.last_name}`);
+                                    setShowDropdown(false);
+                                  }}
+                                >
+                                  {student.first_name} {student.last_name}
+                                </div>
+                              ))
+                            ) : (
+                              <div className="dropdown-item">No results found</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <br /><br />
+                      <button type="submit" className="create-btn">Create</button>
+                    </form>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {/* Profile Update Section */}
@@ -419,6 +596,176 @@ const CareerDashboard = () => {
 
                 <button type="submit" className="save-profile-btn">Save Changes</button>
               </form>
+            </div>
+          )}
+          {activeTab === "partners" && (
+            <div className="partners-content">
+              <h2>Partners</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Lead Type</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {partners.map((partner) => (
+                    <tr key={partner.partner_id}>
+                      <td>{partner.partner_name}</td>
+                      <td>{partner.category}</td>
+                      <td>{partner.lead_type}</td>
+                      <td>{partner.status}</td>
+                      <td>
+                        <button onClick={() => openPartnerActionsModal(partner)}>...</button>
+                      </td>
+
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Add Partner Modal */}
+              {showPartnerModal && (
+                <div className="modal-overlay">
+                  <div className="modal-content">
+                    <button className="modal-close-btn" onClick={() => setShowPartnerModal(false)}>✖</button>
+                    <h3>Add New Partner</h3>
+                    <form onSubmit={handleCreatePartner}>
+                      <label>Partner Name</label>
+                      <input type="text" value={newPartner.partner_name} onChange={(e) => setNewPartner({ ...newPartner, partner_name: e.target.value })} required />
+
+                      <label>Category</label>
+                      <select value={newPartner.category} onChange={(e) => setNewPartner({ ...newPartner, category: e.target.value })} required>
+                        <option value="">Select Category</option>
+                        <option value="Pre-University Internships">Pre-University Internships</option>
+                        <option value="Summer Internships">Summer Internships</option>
+                        <option value="Full-Time Job Placements">Full-Time Job Placements</option>
+                        <option value="Fundraising Dinner">Fundraising Dinner</option>
+                        <option value="Exploratory">Exploratory</option>
+                      </select>
+
+                      <label>Lead Type</label>
+                      <select value={newPartner.lead_type} onChange={(e) => setNewPartner({ ...newPartner, lead_type: e.target.value })} required>
+                        <option value="">Select Lead Type</option>
+                        <option value="Cold">Cold</option>
+                        <option value="Warm">Warm</option>
+                        <option value="Hot">Hot</option>
+                      </select>
+
+                      <label>Status</label>
+                      <select value={newPartner.status} onChange={(e) => setNewPartner({ ...newPartner, status: e.target.value })} required>
+                        <option value="Not Contacted">Not Contacted</option>
+                        <option value="Contacted">Contacted</option>
+                        <option value="Closed">Closed</option>
+                        <option value="Follow Up">Follow Up</option>
+                        <option value="Alan to Follow Up">Alan to Follow Up</option>
+                      </select>
+
+                      <label>Contact Person</label>
+                      <input type="text" value={newPartner.contact_person} onChange={(e) => setNewPartner({ ...newPartner, contact_person: e.target.value })} />
+
+                      <label>Email</label>
+                      <input type="email" value={newPartner.email} onChange={(e) => setNewPartner({ ...newPartner, email: e.target.value })} />
+
+                      <label>Phone</label>
+                      <input type="text" value={newPartner.phone} onChange={(e) => setNewPartner({ ...newPartner, phone: e.target.value })} />
+
+                      <label>City</label>
+                      <input type="text" value={newPartner.city} onChange={(e) => setNewPartner({ ...newPartner, city: e.target.value })} />
+
+                      <label>Country</label>
+                      <input type="text" value={newPartner.country} onChange={(e) => setNewPartner({ ...newPartner, country: e.target.value })} />
+
+                      <label>Website</label>
+                      <input type="url" value={newPartner.website} onChange={(e) => setNewPartner({ ...newPartner, website: e.target.value })} />
+
+                      <label>LinkedIn</label>
+                      <input type="url" value={newPartner.linkedin} onChange={(e) => setNewPartner({ ...newPartner, linkedin: e.target.value })} />
+
+                      <label>Notes</label>
+                      <textarea value={newPartner.notes} onChange={(e) => setNewPartner({ ...newPartner, notes: e.target.value })} />
+
+                      <button type="submit" className="confirm-btn">Save Partner</button>
+                    </form>
+                  </div>
+                </div>
+              )}
+              {showPartnerActionsModal && selectedPartner && (
+                <div className="modal-overlay">
+                  <div className="modal-content">
+                    <button className="modal-close-btn" onClick={() => setShowPartnerActionsModal(false)}>✖</button>
+                    <h3>Edit Partner</h3>
+
+                    {/* Update Partner Details */}
+                    <label>Category</label>
+                    <select value={selectedPartner.category} onChange={(e) => setSelectedPartner({ ...selectedPartner, category: e.target.value })}>
+                      {Object.entries(CATEGORY_MAP).map(([label, value]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+
+                    <label>Lead Type</label>
+                    <select value={selectedPartner.lead_type} onChange={(e) => setSelectedPartner({ ...selectedPartner, lead_type: e.target.value })}>
+                      {Object.entries(LEAD_TYPE_MAP).map(([label, value]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+
+                    <label>Status</label>
+                    <select value={selectedPartner.status} onChange={(e) => setSelectedPartner({ ...selectedPartner, status: e.target.value })}>
+                      {Object.entries(STATUS_MAP).map(([label, value]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+
+                    <button className="confirm-btn" onClick={handleUpdatePartner}>Save Changes</button>
+
+                    {/* Delete Partner */}
+                    <button className="delete-btn" onClick={handleDeletePartner}>🗑 Delete Partner</button>
+
+                    {/* View & Add Interactions */}
+                    <h3>Interactions</h3>
+                    <div className="interactions-container">
+                      {interactions.length > 0 ? (
+                        <ul className="interactions-list">
+                          {interactions.map((interaction) => (
+                            <li key={interaction.interaction_id} className="interaction-item">
+                              <div className="interaction-header">
+                                <strong>{interaction.career_member_name}</strong>
+                                <span className="interaction-date">{interaction.interaction_date}</span>
+                              </div>
+                              <p className="interaction-type">{interaction.interaction_type}</p>
+                              <p className="interaction-notes">{interaction.notes}</p>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="no-interactions">No interactions recorded yet.</p>
+                      )}
+                    </div>
+                    <form onSubmit={handleAddInteraction}>
+                    <h3>Add Interaction</h3>
+                    <input type="text" placeholder="Interaction Type" value={newInteraction.interaction_type} onChange={(e) => setNewInteraction({ ...newInteraction, interaction_type: e.target.value })} />
+                    <textarea placeholder="Notes" value={newInteraction.notes} onChange={(e) => setNewInteraction({ ...newInteraction, notes: e.target.value })}></textarea>
+                    <label>Interaction Date</label>
+                    <input
+                      type="date"
+                      value={newInteraction.interaction_date}
+                      max={new Date().toISOString().split("T")[0]} // ✅ Restrict future dates
+                      onChange={(e) => setNewInteraction({ ...newInteraction, interaction_date: e.target.value })}
+                    />
+                    
+
+
+                    <button className="confirm-btn">Add Interaction</button>
+                    </form>
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
         </section>
