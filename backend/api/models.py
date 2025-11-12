@@ -1,9 +1,9 @@
+# api/models.py
 from django.db import models
 from django.utils.timezone import now, timedelta
-from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.core.exceptions import ValidationError
-import calendar
+from django.conf import settings
 
 
 class CustomUserManager(BaseUserManager):
@@ -13,21 +13,23 @@ class CustomUserManager(BaseUserManager):
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
-        user.is_active = False  # User must verify email
+        user.is_active = False  # Must verify email
         user.save(using=self._db)
         return user
 
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        return self.create_user(email, password, **extra_fields)
+        user = self.create_user(email, password, **extra_fields)
+        user.is_active = True  # Superusers are always active
+        user.save(using=self._db)
+        return user
+
 
 class User(AbstractBaseUser, PermissionsMixin):
     ROLE_CHOICES = [
-        ('KenSAP', 'KenSAP Student'),
-        ('Undergrad', 'Undergraduate'),
-        ('Alumni', 'Alumni'),
-        ('CareerMember', 'Career Member'),
+        ('Graduand', 'Graduand'),
+        ('Admin', 'Admin'),
     ]
 
     user_id = models.AutoField(primary_key=True)
@@ -35,267 +37,210 @@ class User(AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='KenSAP')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    is_active = models.BooleanField(default=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='Graduand')
+    is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     email_verification_token = models.CharField(max_length=255, blank=True, null=True)
     email_verification_sent_at = models.DateTimeField(blank=True, null=True)
-
-    # Role-Specific Fields
-    highschool = models.CharField(max_length=255, blank=True, null=True)
-    kensap_year = models.IntegerField(blank=True, null=True)
-    gpa = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True)
-    university = models.CharField(max_length=255, blank=True, null=True)
-    major = models.CharField(max_length=255, blank=True, null=True)
-    minor = models.CharField(max_length=255, blank=True, null=True)
-    graduation_month = models.IntegerField(blank=True, null=True)  # Store month (1-12)
-    graduation_year = models.IntegerField(blank=True, null=True)
-    company = models.CharField(max_length=255, blank=True, null=True)
-    city = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     objects = CustomUserManager()
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name', 'role']
 
-    @property
-    def id(self):
-        return self.user_id
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} ({self.role})"
 
-    def update_role(self):
-        """Ensure role updates based on graduation status."""
-        current_year = now().year
-        current_month = now().month
-
-        if self.role == "KenSAP" and self.university:
-            self.transition_to("Undergrad")
-        elif self.role == "Undergrad":
-            if self.graduation_year and self.graduation_month:
-                # Check if graduation date has passed
-                if (self.graduation_year < current_year) or \
-                   (self.graduation_year == current_year and self.graduation_month <= current_month):
-                    self.transition_to("Alumni")
-
-    def transition_to(self, new_role):
-        """Helper method to transition roles."""
-        if self.role != new_role:  # Avoid unnecessary transitions
-            RoleTransition.objects.create(user=self, old_role=self.role, new_role=new_role)
-            self.role = new_role
-            self.save()
-    
     def is_verification_token_expired(self):
-        """Check if the stored verification token is expired (7 days)."""
         if not self.email_verification_sent_at:
             return True
         return now() > self.email_verification_sent_at + timedelta(days=7)
 
-    def clean(self):
-        if not self.is_active:
-            raise ValidationError("Please verify your email before logging in.")
 
-    def __str__(self):
-        return f"{self.first_name} {self.last_name} ({self.role})"
+class Assessment(models.Model):
+    FIELD_CHOICES = [
+        ('Architecture', 'Architecture'),
+        ('Art', 'Art'),
+        ('Biology', 'Biology'),
+        ('Business', 'Business'),
+        ('Chemistry', 'Chemistry'),
+        ('Computer Science', 'Computer Science'),
+        ('Education', 'Education'),
+        ('Engineering', 'Engineering'),
+        ('Finance', 'Finance'),
+        ('Law', 'Law'),
+        ('Marketing', 'Marketing'),
+        ('Medicine', 'Medicine'),
+        ('Music', 'Music'),
+        ('Physics', 'Physics'),
+        ('Psychology', 'Psychology'),
+        ('Other', 'Other'),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='assessment')
+    field = models.CharField(max_length=50, choices=FIELD_CHOICES)
+    other_field = models.CharField(max_length=100, blank=True, null=True, help_text="If you selected 'Other', please specify.")
     
-
-class VerificationLog(models.Model):
-    """Track email verification attempts"""
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    timestamp = models.DateTimeField(default=now)
-    status = models.CharField(max_length=20, choices=[('Success', 'Success'), ('Failed', 'Failed')])
-
-    def __str__(self):
-        return f"{self.user.email} - {self.status} at {self.timestamp}"
-
-class RoleTransition(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    old_role = models.CharField(max_length=20, choices=User.ROLE_CHOICES)
-    new_role = models.CharField(max_length=20, choices=User.ROLE_CHOICES)
-    transition_date = models.DateField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.user.first_name} {self.user.last_name}: {self.old_role} → {self.new_role}"
+    gpa = models.FloatField()
+    extracurricular_activities = models.IntegerField(default=0)
+    internships = models.IntegerField(default=0)
+    projects = models.IntegerField(default=0)
+    leadership_positions = models.IntegerField(default=0)
+    research_experience = models.IntegerField(default=0)
+    coding_skills = models.IntegerField(default=0)
+    communication_skills = models.IntegerField(default=0)
+    problem_solving_skills = models.IntegerField(default=0)
+    teamwork_skills = models.IntegerField(default=0)
+    analytical_skills = models.IntegerField(default=0)
+    presentation_skills = models.IntegerField(default=0)
+    networking_skills = models.IntegerField(default=0)
+    industry_certifications = models.IntegerField(default=0)
+    recommended_career = models.CharField(max_length=255, null=True, blank=True)
     
-class University(models.Model):
-    name = models.CharField(max_length=255, unique=True)
-
-    def __str__(self):
-        return self.name
-
-# === PARTNERS ===
-class Partner(models.Model):
-    STATUS_CHOICES = [
-        ("contacted", "Contacted"),
-        ("not_contacted", "Not Contacted"),
-        ("closed", "Closed"),
-        ("follow_up", "Follow-Up"),
-        ("alan_to_follow", "Alan to Follow Up"),
-    ]
-
-    CATEGORY_CHOICES = [
-        ("pre_university", "Pre-University Internships"),
-        ("summer_internships", "Summer Internships"),
-        ("full_time", "Full-Time Job Placements"),
-        ("fundraising", "Fundraising Dinner"),
-        ("exploratory", "Exploratory"),
-    ]
-
-    LEAD_TYPE_CHOICES = [
-        ("cold", "Cold"),
-        ("warm", "Warm"),
-        ("hot", "Hot"),
-    ]
-
-    partner_id = models.AutoField(primary_key=True)
-    partner_name = models.CharField(max_length=255)
-    relationship_owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, blank=True, null=True)
-    lead_type = models.CharField(max_length=50, choices=LEAD_TYPE_CHOICES, blank=True, null=True)
-    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="not_contacted")
-    last_outreach_date = models.DateField(blank=True, null=True)
-    contact_person = models.CharField(max_length=255, blank=True, null=True)
-    position = models.CharField(max_length=255, blank=True, null=True)
-    email = models.EmailField(blank=True, null=True)
-    phone = models.CharField(max_length=20, blank=True, null=True)
-    city = models.CharField(max_length=255, blank=True, null=True)
-    country = models.CharField(max_length=255, blank=True, null=True)
-    website = models.URLField(blank=True, null=True)
-    linkedin = models.URLField(blank=True, null=True)
-    connection = models.TextField(blank=True, null=True)
-    notes = models.TextField(blank=True, null=True)
-
-    def __str__(self):
-        return self.partner_name
-
-
-# === PARTNER INTERACTIONS ===
-class PartnerInteraction(models.Model):
-    interaction_id = models.AutoField(primary_key=True)
-    partner = models.ForeignKey(Partner, on_delete=models.CASCADE)
-    career_member = models.ForeignKey(User, on_delete=models.CASCADE)
-    interaction_date = models.DateField()
-    interaction_type = models.CharField(max_length=255)
-    notes = models.TextField(blank=True, null=True)
-
-    def __str__(self):
-        return f"Interaction with {self.partner.partner_name} on {self.interaction_date}"
-
-
-# === JOB & INTERNSHIPS ===
-class JobInternship(models.Model):
-    TYPE_CHOICES = [
-        ("Internship", "Internship"),
-        ("Job", "Job"),
-    ]
-
-    internship_id = models.AutoField(primary_key=True)
-    title = models.CharField(max_length=255)
-    description = models.TextField()
-    company = models.CharField(max_length=255)
-    location = models.CharField(max_length=255)
-    job_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default="Internship")
-    deadline = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
-
-    def is_expired(self):
-        """Check if the internship deadline has passed."""
-        return self.deadline < now().date()
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.title} - {self.company}"
-
-
-# === TRACKING ASSIGNMENTS (REPLACES M2M FIELD) ===
-class JobInternshipAssignedTo(models.Model):
-    """Tracks which users are assigned to internships."""
-    jobinternship = models.ForeignKey(JobInternship, on_delete=models.CASCADE)
-    user = models.ForeignKey("User", on_delete=models.CASCADE)
+        if self.field == 'Other' and self.other_field:
+            return f"{self.user.first_name} {self.user.last_name} - {self.other_field} Assessment"
+        return f"{self.user.first_name} {self.user.last_name} - {self.field} Assessment"
 
     class Meta:
-        unique_together = ("jobinternship", "user")  # Prevent duplicate assignments
-
-    def __str__(self):
-        return f"{self.user.first_name} assigned to {self.jobinternship.title}"
+        ordering = ['-created_at']
 
 
-# === TRACKING STUDENT APPLICATIONS ===
-class InternshipApplication(models.Model):
-    STATUS_CHOICES = [
-        ("Applied", "Applied"),
-        ("Under Review", "Under Review"),
-        ("Interview", "Interview"),
-        ("Accepted", "Accepted"),
-        ("Rejected", "Rejected"),
+
+class Job(models.Model):
+    WORK_TYPE_CHOICES = [
+        ('Full-time', 'Full-time'),
+        ('Part-time', 'Part-time'),
+        ('Contract', 'Contract'),
+        ('Internship', 'Internship'),
+        ('Remote', 'Remote'),
+        ('Hybrid', 'Hybrid'),
     ]
 
-    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="applications")
-    internship = models.ForeignKey(JobInternship, on_delete=models.CASCADE, related_name="applications")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Applied")
-    applied_on = models.DateTimeField(auto_now_add=True)
-    resume_link = models.URLField(blank=True, null=True)
-    resume_file = models.FileField(upload_to="resumes/", blank=True, null=True)
-    cover_letter = models.TextField(blank=True, null=True)
+    job_id = models.CharField(max_length=100, unique=True)
+    title = models.CharField(max_length=255)
+    company_name = models.CharField(max_length=255)
+    description = models.TextField()
+    skills_desc = models.TextField(blank=True, null=True)
+    work_type = models.CharField(max_length=50, choices=WORK_TYPE_CHOICES)
+    location = models.CharField(max_length=255)
+    med_salary = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    normalized_salary = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    min_salary = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    max_salary = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    salary_currency = models.CharField(max_length=10, default='USD')
+    salary_period = models.CharField(max_length=20, default='yearly')
+    experience_level = models.CharField(max_length=50, blank=True, null=True)
+    education_level = models.CharField(max_length=50, blank=True, null=True)
+    industry = models.CharField(max_length=100, blank=True, null=True)
+    company_size = models.CharField(max_length=50, blank=True, null=True)
+    job_posting_date = models.DateField(null=True, blank=True)
+    application_deadline = models.DateField(null=True, blank=True)
+    benefits = models.TextField(blank=True, null=True)
+    requirements = models.TextField(blank=True, null=True)
+    responsibilities = models.TextField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.title} at {self.company_name}"
 
     class Meta:
-        unique_together = ("student", "internship")  # Prevent duplicate applications
+        ordering = ['-created_at']
+
+class ChatConversation(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="chat_conversations")
+    title = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_activity = models.DateTimeField(auto_now=True)
+    metadata = models.JSONField(blank=True, null=True)
 
     def __str__(self):
-        return f"{self.student.first_name} - {self.internship.title} ({self.status})"
+        if self.title:
+            return f"{self.user.email} - {self.title}"
+        return f"{self.user.email} - Conversation {self.pk}"
 
-# === EVENTS CALENDAR ===
-class EventCalendar(models.Model):
-    event_id = models.AutoField(primary_key=True)
-    event_date = models.DateField()
-    event_title = models.CharField(max_length=255)
-    event_description = models.TextField()
-    career_member = models.ForeignKey(User, on_delete=models.CASCADE)
-    join_link = models.URLField(blank=True, null=True)
+
+class ChatMessage(models.Model):
+    SENDER_CHOICES = [
+        ("user", "User"),
+        ("ai", "AI"),
+        ("system", "System"),
+    ]
+
+    conversation = models.ForeignKey(ChatConversation, on_delete=models.CASCADE, related_name="messages")
+    sender = models.CharField(max_length=10, choices=SENDER_CHOICES)
+    text = models.TextField()
+    tokens = models.IntegerField(null=True, blank=True)
+    metadata = models.JSONField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    feedback = models.SmallIntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["created_at"]
 
     def __str__(self):
-        return self.event_title
+        return f"{self.conversation} - {self.sender} @ {self.created_at}"
 
+class Experience(models.Model):
+    EXPERIENCE_TYPES = [
+        ("Extracurricular", "Extracurricular"),
+        ("Internship", "Internship"),
+        ("Project", "Project"),
+        ("Leadership", "Leadership"),
+        ("Research", "Research"),
+        ("Industry", "Industry"),
+    ]
 
-# === MEETINGS ===
-class Meeting(models.Model):
-    meeting_id = models.AutoField(primary_key=True)
-    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="meetings")
-    career_member = models.ForeignKey(User, on_delete=models.CASCADE, related_name="career_meetings")
-    meeting_date = models.DateTimeField()
-    meeting_notes = models.TextField(blank=True, null=True)
-
-    def __str__(self):
-        return f"Meeting on {self.meeting_date} with {self.student.first_name}"
-
-
-# === E-LEARNING MODULES & PROGRESS ===
-class ELearningModule(models.Model):
-    module_id = models.AutoField(primary_key=True)
+    assessment = models.ForeignKey(
+        "Assessment",
+        on_delete=models.CASCADE,
+        related_name="experiences"
+    )
+    type = models.CharField(max_length=50, choices=EXPERIENCE_TYPES)
     title = models.CharField(max_length=255)
-    description = models.TextField()
+    organization = models.CharField(max_length=255, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    start_date = models.DateField(blank=True, null=True)
+    end_date = models.DateField(blank=True, null=True)
 
     def __str__(self):
-        return self.title
+        return f"{self.type}: {self.title} ({self.organization or 'N/A'})"
+
+    def save(self, *args, **kwargs):
+        """Automatically update numeric counts in Assessment"""
+        super().save(*args, **kwargs)
+
+        assessment = self.assessment
+        assessment.extracurricular_activities = assessment.experiences.filter(type="Extracurricular").count()
+        assessment.internships = assessment.experiences.filter(type="Internship").count()
+        assessment.projects = assessment.experiences.filter(type="Project").count()
+        assessment.leadership_positions = assessment.experiences.filter(type="Leadership").count()
+        assessment.research_experience = assessment.experiences.filter(type="Research").count()
+        assessment.save(update_fields=[
+            "extracurricular_activities",
+            "internships",
+            "projects",
+            "leadership_positions",
+            "research_experience",
+        ])
 
 
-class ELearningContent(models.Model):
-    content_id = models.AutoField(primary_key=True)
-    module = models.ForeignKey(ELearningModule, on_delete=models.CASCADE)
-    description = models.TextField()
-    content_link = models.URLField()
-    notes = models.TextField(blank=True, null=True)
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    bio = models.TextField(blank=True)
+    education = models.CharField(max_length=255, blank=True)
+    institution = models.CharField(max_length=255, blank=True)
+    skills = models.JSONField(default=list, blank=True)
+    interests = models.JSONField(default=list, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Content for {self.module.title}"
-
-
-class ProgressTable(models.Model):
-    student = models.ForeignKey(User, on_delete=models.CASCADE)
-    module = models.ForeignKey(ELearningModule, on_delete=models.CASCADE)
-    percentage = models.FloatField(default=0)
-    completion_status = models.BooleanField(default=False)
-
-    def __str__(self):
-        return f"{self.student.first_name} - {self.module.title}"
-
+        return f"{self.user.email}'s Profile"
 

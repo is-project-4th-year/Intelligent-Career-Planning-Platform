@@ -1,29 +1,46 @@
-from django.urls import path
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .views import ApplyInternshipView, AvailableInternshipsView, CreateAssignInternshipView, DeleteInternshipView, InternshipApplicationDetailView, InternshipApplicationsByInternshipView, InternshipApplicationsView, MyApplicationsView, NonCareerMembersView, PartnerDeleteView, PartnerDetailUpdateView, PartnerInteractionListCreateView, PartnerListCreateView, ProfileUpdateView, RegisterUserView, RequestPasswordResetView, ResendVerificationEmailView, ResetPasswordConfirmView, UserListCreateView, UserListView, VerifyEmailView, WithdrawApplicationView
+# api/urls.py
+from .views_chatbot import chat_with_ai, get_conversation_messages, list_conversations, message_feedback
+from django.urls import path, include
+from .views import (
+    ProfileView,
+    RegisterUserView,
+    CustomTokenObtainPairView,
+    VerifyEmailView,
+    ProfileUpdateView,
+    AssessmentView,
+    AssessmentPredictView,
+    JobListView,
+    JobDetailView,
+    delete_experience,
+    experiences_view,
+    update_experience,
+)
+from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
-    path("users/", UserListCreateView.as_view(), name="user-list"),
-    path("useres/", UserListView.as_view(), name="user-list"),
     path("register/", RegisterUserView.as_view(), name="register"),
-    path("profile/update/", ProfileUpdateView.as_view(), name="profile-update"),
-    path("internships/", AvailableInternshipsView.as_view(), name="available-internships"),
-    path("internships/apply/", ApplyInternshipView.as_view(), name="apply-internship"),
-    path("internships/myapplications/", MyApplicationsView.as_view(), name="my-applications"),
-    path("internships/application/<int:pk>/", InternshipApplicationsView.as_view(), name="manage-applications"),
-    path("internships/create/", CreateAssignInternshipView.as_view(), name="create-assign-internship"),
-    path("internships/applications/<int:pk>/withdraw/", WithdrawApplicationView.as_view(), name="withdraw-application"),
-    path("internships/<int:pk>/delete/", DeleteInternshipView.as_view(), name="delete-internship"),
-    path("internships/<int:internship_id>/applications/", InternshipApplicationsByInternshipView.as_view(), name="internship-applications"),
-    path("internships/applications/<int:pk>/", InternshipApplicationDetailView.as_view(), name="application-detail"),
-    path("users/non-career/", NonCareerMembersView.as_view(), name="non-career-users"),
-    path("partners/", PartnerListCreateView.as_view(), name="partner-list"),
-    path("partners/<int:pk>/", PartnerDetailUpdateView.as_view(), name="partner-detail"),
-    path("partners/<int:partner_id>/interactions/", PartnerInteractionListCreateView.as_view(), name="partner-interactions"),
-    path("partners/<int:pk>/delete/", PartnerDeleteView.as_view(), name="partner-delete"),
+    path("login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
+    # path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("verify-email/<uidb64>/<token>/", VerifyEmailView.as_view(), name="verify-email"),
-    path("resend-verification/", ResendVerificationEmailView.as_view(), name="resend-verification"),
-    path("password-reset/", RequestPasswordResetView.as_view(), name="request-password-reset"),
-    path("password-reset-confirm/<uid>/<token>/", ResetPasswordConfirmView.as_view(), name="password-reset-confirm"),
-]
+    path("profile/update/", ProfileUpdateView.as_view(), name="profile-update"),
 
+    # Assessment endpoints (JWT protected)
+    path("assessment/", AssessmentView.as_view(), name="assessment"),
+    path("assessment/predict/", AssessmentPredictView.as_view(), name="assessment-predict"),
+        
+    # Profile
+    path("profile/", ProfileView.as_view(), name="profile"),
+
+    # Experience management
+    path("assessment/experience/", experiences_view, name="experiences"),
+    path("assessment/experience/<int:experience_id>/", update_experience, name="update_experience"),
+    path("assessment/experience/<int:experience_id>/delete/", delete_experience, name="delete_experience"),
+
+
+    # Job endpoints (no authentication required)
+    path("jobs/", JobListView.as_view(), name="job-list"),
+    path("jobs/<int:id>/", JobDetailView.as_view(), name="job-detail"),
+
+    path("admin/", include("api.urls_admin")),
+    path("", include("api.urls_chatbot")),
+]

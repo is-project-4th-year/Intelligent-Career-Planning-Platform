@@ -1,51 +1,142 @@
-import react from "react"
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
-import Login from "./pages/Login"
-import Register from "./pages/Register"
-import VerifyEmail from "./pages/VerifyEmail";
-import StudentDashboard from "./pages/student/dashboard"
-import CareerDashboard from "./pages/careers/career-dashboard"
-import RequestPasswordReset from "./pages/RequestPasswordReset";
-import ResetPassword from "./pages/ResetPassword";
-// import NotFound from "./pages/NotFound"
-import ProtectedRoute from "./components/ProtectedRoute"
-
-function Logout() {
-  localStorage.clear()
-  return <Navigate to="/" />
-}
+import { useState, useEffect } from "react";
+import { Hero } from "./components/Hero";
+import { LoginRegister } from "./components/LoginRegister";
+import { Header } from "./components/Header";
+import AdminDashboard from "./components/AdminDashboard";
+import AssessmentForm from "./components/AssessmentForm";
+import { MentorshipChatbot } from "./components/MentorshipChatbot";
+import ProfilePage from "./components/ProfilePage"; // ✅ import the new ProfilePage
+import api from "./api/api";
 
 function App() {
+  const [page, setPage] = useState("hero");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
+  const [role, setRole] = useState("");
+  const [assessment, setAssessment] = useState(null);
+
+  // ✅ Load user and check assessment when app loads
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem("user"));
+    if (storedUser) {
+      setIsLoggedIn(true);
+      setUser(storedUser);
+      setRole(storedUser.role || "Graduand");
+
+      if (storedUser.role === "Admin") {
+        setPage("admin");
+      } else {
+        checkAssessment(storedUser);
+      }
+    }
+  }, []);
+
+  // ✅ Check if the user has an assessment
+  const checkAssessment = async () => {
+    try {
+      const res = await api.get("assessment/");
+      if (res.data) {
+        setAssessment(res.data);
+        setPage("profile"); // redirect to profile if assessment exists
+      }
+    } catch (err) {
+      if (err.response?.status === 404) {
+        setPage("assessment"); // go to assessment form if missing
+      } else {
+        console.error("Error checking assessment:", err);
+      }
+    }
+  };
+
+  // ✅ Handle successful login
+  const handleLoginSuccess = (userData) => {
+    setIsLoggedIn(true);
+    setUser(userData);
+    setRole(userData.role);
+    localStorage.setItem("user", JSON.stringify(userData));
+
+    if (userData.role === "Admin") {
+      setPage("admin");
+    } else {
+      checkAssessment(userData);
+    }
+  };
+
+  // ✅ Logout user
+  const handleLogout = () => {
+    localStorage.clear();
+    setIsLoggedIn(false);
+    setUser(null);
+    setRole("");
+    setAssessment(null);
+    setPage("hero");
+  };
+
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/logout" element={<Logout />} />
-        <Route path="/verify-email/:uid/:token" element={<VerifyEmail />} />
-        <Route path="/forgot-password" element={<RequestPasswordReset />} />
-        <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
-        
-        {/* Protected Routes */}
-        <Route 
-          path="/dashboard" 
-          element={
-            <ProtectedRoute>
-              <StudentDashboard />
-            </ProtectedRoute>
-          } 
+    <>
+      {/* Show Header on all pages except Admin Dashboard */}
+      {page !== "admin" && (
+        <Header
+          currentPage={page}
+          isLoggedIn={isLoggedIn}
+          userName={user?.first_name || user?.email || "User"}
+          role={role}
+          onNavigate={setPage}
+          onLogout={handleLogout}
         />
-        <Route 
-          path="/career-dashboard" 
-          element={
-            <ProtectedRoute>
-              <CareerDashboard />
-            </ProtectedRoute>
-          } 
+      )}
+
+      {/* Landing Page */}
+      {page === "hero" && (
+        <Hero
+          onGetStarted={() => setPage("register")}
+          onLogin={() => setPage("login")}
         />
-      </Routes>
-    </BrowserRouter>
-  )
+      )}
+
+      {/* Login */}
+      {page === "login" && (
+        <LoginRegister
+          mode="login"
+          onSuccess={handleLoginSuccess}
+          onToggleMode={() => setPage("register")}
+          onBack={() => setPage("hero")}
+        />
+      )}
+
+      {/* Register */}
+      {page === "register" && (
+        <LoginRegister
+          mode="register"
+          onSuccess={handleLoginSuccess}
+          onToggleMode={() => setPage("login")}
+          onBack={() => setPage("hero")}
+        />
+      )}
+
+      {/* Assessment Form */}
+      {page === "assessment" && (
+        <AssessmentForm
+          onComplete={(data) => {
+            setAssessment(data);
+            setPage("profile"); // redirect once done
+          }}
+          onBack={() => setPage("hero")}
+        />
+      )}
+
+      {/* ✅ Profile Page (new version) */}
+      {page === "profile" && <ProfilePage />}
+
+      {/* Mentorship Chatbot */}
+      {page === "chatbot" && <MentorshipChatbot />}
+
+      {/* Admin Dashboard */}
+      {page === "admin" && role === "Admin" && (
+        <AdminDashboard onLogout={handleLogout} />
+      )}
+    </>
+  );
 }
 
 export default App;

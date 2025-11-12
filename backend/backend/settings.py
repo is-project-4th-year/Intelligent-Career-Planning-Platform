@@ -59,6 +59,8 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
+OPENAI_API_KEY="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"
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -111,7 +113,7 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        "NAME": os.getenv("DB_DATABASE"),
+        "NAME": os.getenv("DB_DATABASE", "kazini"),
         "USER": os.getenv("DB_USERNAME"),
         "PASSWORD": os.getenv("DB_PASSWORD"),
         "HOST": os.getenv("DB_HOST"),
@@ -185,19 +187,52 @@ STATIC_URL = '/static/'
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# File upload settings
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+FILE_UPLOAD_TEMP_DIR = None
+FILE_UPLOAD_PERMISSIONS = 0o644
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOWS_CREDENTIALS = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
-# Email settings for SMTP (Gmail)
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER="artalchemy.com@gmail.com" 
-EMAIL_HOST_PASSWORD="kyjafvmowifxbfrj"
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+# Email settings
+if DEBUG:
+    # In development, print emails to console
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+else:
+    # In production, use SMTP (Gmail)
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_HOST = "smtp.gmail.com"
+    EMAIL_PORT = 587
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER="careers@kensap.org" 
+    EMAIL_HOST_PASSWORD="pkguupqdwqhaprtw"
+    DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# Default sender (used in both dev and prod)
+DEFAULT_FROM_EMAIL = "careers@kensap.org"
